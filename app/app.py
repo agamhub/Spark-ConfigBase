@@ -58,6 +58,19 @@ def display_config():
     config_data = get_config_data(CONFIG_FILEPATH)
     headers = get_headers_from_csv(CONFIG_FILEPATH)
     page = request.args.get('page', 1, type=int)
+    filter_value = request.args.get('filter', '').strip()
+    filter_column = request.args.get('column', '').strip()
+    sort_column = request.args.get('column', '').strip()
+    sort_order = request.args.get('order', 'asc')
+
+    # Apply filtering if filter parameters are provided
+    if filter_column and filter_value:
+        config_data = [row for row in config_data if str(row.get(filter_column, '')).lower() == filter_value.lower()]
+
+        # Apply sorting if sort parameters are provided
+    if sort_column:
+        config_data.sort(key=lambda x: x.get(sort_column, ''), reverse=(sort_order == 'desc'))
+
     start_index = (page - 1) * ROWS_PER_PAGE
     end_index = start_index + ROWS_PER_PAGE
     paginated_data = config_data[start_index:end_index]
@@ -88,14 +101,25 @@ def display_config():
                         break
                 if updated:
                     save_config_data(CONFIG_FILEPATH, config_data)
-                return redirect(url_for('display_config', page=page))
+                return redirect(url_for('display_config', page=page, filter=filter_value, column=filter_column))
         elif request.form.get('action') == 'delete':
             filename_to_delete = request.form.get('delete_filename')
             config_data = [row for row in config_data if row.get('FileName') != filename_to_delete]
             save_config_data(CONFIG_FILEPATH, config_data)
-            return redirect(url_for('display_config', page=page))
+            return redirect(url_for('display_config', page=page, filter=filter_value, column=filter_column))
 
-    return render_template('config_form.html', config_data=paginated_data, headers=headers, page=page, total_pages=total_pages, error_message=error_message)
+    return render_template(
+            'config_form.html',
+            config_data=paginated_data,
+            headers=headers,
+            page=page,
+            total_pages=total_pages,
+            error_message=error_message,
+            filter_criteria=filter_value,
+            filter_column=filter_column,
+            sort_column=sort_column,
+            sort_order=sort_order
+        )
 
 @app.route('/database-config')
 def database_config():
@@ -103,18 +127,31 @@ def database_config():
 
 @app.route('/chart-data')
 def chart_data():
-    """Provide data for the dashboard chart."""
+    """Provide paginated data for the dashboard chart."""
     config_data = get_config_data(CONFIG_FILEPATH)
     # Example: Count occurrences of each FileType
     file_type_counts = {}
+    flag_counts = {}  # Count occurrences of Flag = 1 for each BatchName
     for row in config_data:
-        file_type = row.get('BatchName', 'Unknown')
-        file_type_counts[file_type] = file_type_counts.get(file_type, 0) + 1
+        batch_name = row.get('BatchName', 'Unknown')
+        file_type_counts[batch_name] = file_type_counts.get(batch_name, 0) + 1
+        if row.get('Flag') == '1':
+            flag_counts[batch_name] = flag_counts.get(batch_name, 0) + 1
+            
+    # Sort and paginate the data
+    sorted_file_types = sorted(file_type_counts.items(), key=lambda x: x[1], reverse=True)
+    page = int(request.args.get('page', 1))  # Get the page number from the query string
+    items_per_page = 10
+    start_index = (page - 1) * items_per_page
+    end_index = start_index + items_per_page
+    paginated_file_types = sorted_file_types[start_index:end_index]
 
     # Prepare data for the chart
     chart_data = {
-        "labels": list(file_type_counts.keys()),
-        "data": list(file_type_counts.values())
+        "labels": [item[0] for item in paginated_file_types],
+        "data": [item[1] for item in paginated_file_types],
+        "flag_data": [flag_counts.get(item[0], 0) for item in paginated_file_types],  # Add Flag = 1 counts
+        "total_pages": math.ceil(len(file_type_counts) / items_per_page)
     }
     return jsonify(chart_data)
 

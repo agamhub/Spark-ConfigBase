@@ -1,0 +1,41 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.header {
+    text-align: center;
+    margin-top: 20px;
+    padding-bottom: 20px;
+}
+
+.chart-wrapper {
+    flex: 1; /* Take up the remaining space below the header */
+    display: flex;
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+    flex-direction: column; /* Stack chart and pagination vertically */
+    width: 100%; /* Ensure the wrapper spans the full width */
+}
+
+.chart-container {
+    position: relative;
+    height: 40vh;
+    width: 80vw;
+    display: flex;
+    justify-content: center; /* Center the chart horizontally */
+    align-items: center; /* Center the chart vertically */
+}
+
+#pagination-controls {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.order-by-icon i {
+    font-size: 0.6rem; /* Adjust the size of the icons */
+}

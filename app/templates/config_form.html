@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark Job Configs</title>
+    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { font-family: sans-serif; }
@@ -40,17 +41,44 @@
                 <tr>
                     <th>Action</th>
                     {% for header in headers %}
-                    <th>{{ header }}</th>
+                    <th>
+                        {{ header }}
+                        <!-- Filter Icon -->
+                        <span class="filter-icon" data-column="{{ loop.index0 }}" style="cursor: pointer; margin-left: 5px;">
+                            <i class="bi bi-filter"></i> <!-- Bootstrap filter icon -->
+                        </span>
+                        <!-- Filter Dropdown -->
+                        <div class="filter-dropdown" data-column="{{ loop.index0 }}" style="display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 100;">
+                            <form method="GET" action="{{ url_for('display_config') }}">
+                                <input type="hidden" name="column" value="{{ header }}">
+                                <input type="text" class="form-control filter-input" name="filter" placeholder="Filter {{ header }}">
+                                <button type="submit" class="btn btn-sm btn-primary apply-filter">Apply</button>
+                                <a href="{{ url_for('display_config') }}" class="btn btn-sm btn-secondary clear-filter">Clear</a>
+                            </form>
+                        </div>
+                        <!-- Order By Icon -->
+                        <a href="{{ url_for('display_config', column=header, order='asc' if request.args.get('order') == 'desc' else 'desc', filter=request.args.get('filter', ''), page=1) }}" class="order-by-icon" style="margin-left: 5px;">
+                            {% if request.args.get('column') == header %}
+                                {% if request.args.get('order') == 'asc' %}
+                                    <i class="bi bi-arrow-up"></i> <!-- Ascending Icon -->
+                                {% else %}
+                                    <i class="bi bi-arrow-down"></i> <!-- Descending Icon -->
+                                {% endif %}
+                            {% else %}
+                                <i class="bi bi-arrow-down-up"></i> <!-- Default Icon -->
+                            {% endif %}
+                        </a>
+                    </th>
                     {% endfor %}
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="configTableBody">
                 {% for item in config_data %}
                 <tr>
                     <td>
                         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#update-row-{{ loop.index }}">Edit</button>
-
-                         <!-- Delete Button -->
+        
+                        <!-- Delete Button -->
                         <form method="POST" action="{{ url_for('display_config', page=page) }}" style="display:inline;">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="delete_filename" value="{{ item.get('FileName') }}">
@@ -85,21 +113,21 @@
         {% if total_pages > 1 %}
         <div class="pagination">
             {% if page > 1 %}
-                <a href="{{ url_for('display_config', page=page-1) }}">Previous</a>
+                <a href="{{ url_for('display_config', page=page-1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Previous</a>
             {% else %}
                 <span class="disabled">Previous</span>
             {% endif %}
-
+        
             {% for i in range(1, total_pages + 1) %}
                 {% if i == page %}
                     <span class="current">{{ i }}</span>
                 {% else %}
-                    <a href="{{ url_for('display_config', page=i) }}">{{ i }}</a>
+                    <a href="{{ url_for('display_config', page=i, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">{{ i }}</a>
                 {% endif %}
             {% endfor %}
-
+        
             {% if page < total_pages %}
-                <a href="{{ url_for('display_config', page=page+1) }}">Next</a>
+                <a href="{{ url_for('display_config', page=page+1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Next</a>
             {% else %}
                 <span class="disabled">Next</span>
             {% endif %}
@@ -127,8 +155,9 @@
                     form.submit();
                 }
             }
-            
-            document.addEventListener('DOMContentLoaded', function() {
+        
+            document.addEventListener('DOMContentLoaded', function () {
+                // Form Validation Logic
                 const form = document.getElementById('addForm');
                 const requiredTexts = document.querySelectorAll('.required-text');
         
@@ -137,7 +166,7 @@
                     text.style.display = 'none';
                 });
         
-                form.addEventListener('submit', function(event) {
+                form.addEventListener('submit', function (event) {
                     let isValid = true;
                     const inputFields = form.querySelectorAll('input[required]');
         
@@ -160,9 +189,77 @@
                         event.preventDefault(); // Prevent form submission if there are errors
                     }
                 });
+        
+                // Toggle Filter Dropdown
+                const filterIcons = document.querySelectorAll('.filter-icon');
+                const filterDropdowns = document.querySelectorAll('.filter-dropdown');
+
+                filterIcons.forEach(icon => {
+                    icon.addEventListener('click', function () {
+                        event.stopPropagation(); // Prevent event bubbling
+                        const columnIndex = parseInt(this.getAttribute('data-column'), 10);
+                        const dropdown = document.querySelector(`.filter-dropdown[data-column="${columnIndex}"]`);
+                        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                    });
+                });
+
+                // Apply Filter
+                const applyFilterButtons = document.querySelectorAll('.apply-filter');
+                const tableBody = document.getElementById('configTableBody');
+                const rows = Array.from(tableBody.getElementsByTagName('tr'));
+
+                applyFilterButtons.forEach(button => {
+                    button.addEventListener('click', function () {
+                        const columnIndex = parseInt(this.getAttribute('data-column'), 10);
+                        const input = document.querySelector(`.filter-input[data-column="${columnIndex}"]`);
+                        const searchValue = input.value.toLowerCase().trim();
+
+                        rows.forEach(row => {
+                            // Skip collapsed rows (update forms)
+                            if (row.classList.contains('update-form-row')) {
+                                return;
+                            }
+
+                            const cells = row.getElementsByTagName('td');
+                            const cellValue = cells[columnIndex + 1]?.textContent.toLowerCase().trim(); // +1 to skip the "Action" column
+                            // console.log({ columnIndex, searchValue, cellValue });
+                            if (cellValue && cellValue.includes(searchValue)) {
+                                row.style.display = '';
+                            } else {
+                                row.style.display = 'none';
+                            }
+                        });
+                    });
+                });
+
+                // Clear Filter
+                const clearFilterButtons = document.querySelectorAll('.clear-filter');
+                clearFilterButtons.forEach(button => {
+                    button.addEventListener('click', function () {
+                        const columnIndex = parseInt(this.getAttribute('data-column'), 10);
+                        const input = document.querySelector(`.filter-input[data-column="${columnIndex}"]`);
+                        input.value = ''; // Clear the input
+
+                        rows.forEach(row => {
+                            if (!row.classList.contains('update-form-row')) {
+                                row.style.display = ''; // Show all rows
+                            }
+                        });
+                    });
+                });
+
+                // Close Dropdown on Outside Click
+                document.addEventListener('click', function (event) {
+                    filterDropdowns.forEach(dropdown => {
+                        if (!dropdown.contains(event.target) && !dropdown.previousElementSibling.contains(event.target)) {
+                            dropdown.style.display = 'none';
+                        }
+                    });
+                });
             });
         </script>
 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
