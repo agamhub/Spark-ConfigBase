@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spark Job Configs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-family: sans-serif; }
+        h2 { text-align: center; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; margin-bottom: 5px; border: 1px solid #ced4da; border-radius: 4px; }
+        .add-form { margin-top: 30px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; background-color: #f8f9fa; }
+        .add-form label { display: block; margin-bottom: 8px; font-weight: bold; }
+        .add-form button { margin-top: 15px; }
+        .error { color: red; margin-top: 10px; }
+        .back-home-btn { margin-bottom: 20px; }
+        .pagination { display: flex; justify-content: center; margin-top: 20px; }
+        .pagination a, .pagination span { padding: 8px 12px; margin: 0 5px; border: 1px solid #ccc; text-decoration: none; color: black; border-radius: 4px; }
+        .pagination a:hover { background-color: #f0f0f0; }
+        .pagination .current { background-color: #007bff; color: white; border-color: #007bff; }
+        .pagination .disabled { color: #777; border-color: #ddd; pointer-events: none; }
+        .update-form-row { background-color: #e9ecef; }
+        .update-button { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <a href="{{ url_for('home') }}" class="btn btn-secondary back-home-btn">← Back to Home</a>
+        <h2>Spark Job Configs</h2>
+
+        {% if error_message %}
+        <div class="alert alert-danger">{{ error_message }}</div>
+        {% endif %}
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    {% for header in headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in config_data %}
+                <tr>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#update-row-{{ loop.index }}">Edit</button>
+
+                         <!-- Delete Button -->
+                        <form method="POST" action="{{ url_for('display_config', page=page) }}" style="display:inline;">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="delete_filename" value="{{ item.get('FileName') }}">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.get('FileName') }}', this.form)">Delete</button>
+                        </form>
+                    </td>
+                    {% for header in headers %}
+                    <td>{{ item.get(header, '') }}</td>
+                    {% endfor %}
+                </tr>
+                <tr class="collapse update-form-row" id="update-row-{{ loop.index }}">
+                    <td colspan="{{ headers|length + 1 }}">
+                        <form method="POST" action="{{ url_for('display_config', page=page) }}">
+                            <input type="hidden" name="action" value="update">
+                            <input type="hidden" name="update_filename" value="{{ item.get('FileName') }}">
+                            <div class="row">
+                                {% for header in headers %}
+                                <div class="col-md-3 mb-3">
+                                    <label for="update_{{ header }}" class="form-label">{{ header }}</label>
+                                    <input type="text" class="form-control form-control-sm" id="update_{{ header }}" name="update_{{ header }}" value="{{ item.get(header, '') }}">
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm update-button">Save Changes</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% if page > 1 %}
+                <a href="{{ url_for('display_config', page=page-1) }}">Previous</a>
+            {% else %}
+                <span class="disabled">Previous</span>
+            {% endif %}
+
+            {% for i in range(1, total_pages + 1) %}
+                {% if i == page %}
+                    <span class="current">{{ i }}</span>
+                {% else %}
+                    <a href="{{ url_for('display_config', page=i) }}">{{ i }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if page < total_pages %}
+                <a href="{{ url_for('display_config', page=page+1) }}">Next</a>
+            {% else %}
+                <span class="disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="add-form">
+            <h3>Add New Spark Job Configuration</h3>
+            <form method="POST" action="{{ url_for('display_config') }}" id="addForm">
+                <input type="hidden" name="action" value="add">
+                {% for header in headers %}
+                <div class="mb-3">
+                    <label for="{{ header }}" class="form-label">{{ header }}</label>
+                    <input type="text" class="form-control" id="{{ header }}" name="{{ header }}" required>
+                    <div class="form-text text-muted required-text">This field is required.</div>
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary">Add New Item</button>
+            </form>
+        </div>
+        
+        <script>
+            function confirmDelete(filename, form) {
+                if (confirm(`Are you sure you want to delete "${filename}"?`)) {
+                    form.submit();
+                }
+            }
+            
+            document.addEventListener('DOMContentLoaded', function() {
+                const form = document.getElementById('addForm');
+                const requiredTexts = document.querySelectorAll('.required-text');
+        
+                // Initially hide all the required text elements
+                requiredTexts.forEach(text => {
+                    text.style.display = 'none';
+                });
+        
+                form.addEventListener('submit', function(event) {
+                    let isValid = true;
+                    const inputFields = form.querySelectorAll('input[required]');
+        
+                    inputFields.forEach(input => {
+                        const correspondingRequiredText = input.nextElementSibling; // Assuming the div.required-text is immediately after the input
+        
+                        if (!input.value.trim()) {
+                            isValid = false;
+                            if (correspondingRequiredText) {
+                                correspondingRequiredText.style.display = 'block';
+                            }
+                        } else {
+                            if (correspondingRequiredText) {
+                                correspondingRequiredText.style.display = 'none';
+                            }
+                        }
+                    });
+        
+                    if (!isValid) {
+                        event.preventDefault(); // Prevent form submission if there are errors
+                    }
+                });
+            });
+        </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
