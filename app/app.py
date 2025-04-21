@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import csv
 import os
 import math
@@ -100,6 +100,27 @@ def display_config():
 @app.route('/database-config')
 def database_config():
     return render_template('database_config.html')
+
+@app.route('/chart-data')
+def chart_data():
+    """Provide data for the dashboard chart."""
+    config_data = get_config_data(CONFIG_FILEPATH)
+    # Example: Count occurrences of each FileType
+    file_type_counts = {}
+    for row in config_data:
+        file_type = row.get('BatchName', 'Unknown')
+        file_type_counts[file_type] = file_type_counts.get(file_type, 0) + 1
+
+    # Prepare data for the chart
+    chart_data = {
+        "labels": list(file_type_counts.keys()),
+        "data": list(file_type_counts.values())
+    }
+    return jsonify(chart_data)
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
