@@ -28,6 +28,14 @@
                             <li><a class="dropdown-item" href="/dqc">Data Quality Config</a></li>
                         </ul>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarStacksMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Stacks
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarStacksMenuLink">
+                            <li><a class="dropdown-item" href="/application-stacks">Application Stacks</a></li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -94,7 +102,7 @@
                         labels: data.labels,
                         datasets: [
                             {
-                                label: 'Master Job Counts',
+                                label: 'Spark Job Counts',
                                 data: data.master_job_data,
                                 backgroundColor: [
                                 'rgba(75, 192, 192, 0.2)',
@@ -147,7 +155,13 @@
                             x: {
                                 stacked: true, // Enable stacking for the x-axis
                                 ticks: {
-                                    autoSkip: false // Prevent skipping of labels
+                                    autoSkip: false, // Prevent skipping of labels
+                                    font: {
+                                        size: 10, // Set font size to 10px
+                                        family: 'Arial, sans-serif', // Use a clean font
+                                        weight: 'normal' // Set font weight to normal
+                                    },
+                                    color: '#495057' // Set font color to a soft gray
                                 }
                             },
                             y: {

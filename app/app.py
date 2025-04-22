@@ -267,5 +267,9 @@ def record_counts():
         "dqc_count": dqc_count
     })
 
+@app.route('/application-stacks')
+def appstacks():
+    return render_template('appstacks.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
