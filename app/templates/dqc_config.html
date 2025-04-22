@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spark Job Config</title>
+    <title>Data Quality Config</title>
     <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -30,7 +30,7 @@
 <body>
     <div class="container mt-4">
         <a href="{{ url_for('home') }}" class="btn btn-secondary back-home-btn">← Back to Home</a>
-        <h2>Spark Job Config</h2>
+        <h2>Data Quality Config</h2>
 
         {% if error_message %}
         <div class="alert alert-danger">{{ error_message }}</div>
@@ -49,15 +49,15 @@
                         </span>
                         <!-- Filter Dropdown -->
                         <div class="filter-dropdown" data-column="{{ loop.index0 }}" style="display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 100;">
-                            <form method="GET" action="{{ url_for('display_config') }}">
+                            <form method="GET" action="{{ url_for('display_dqc') }}">
                                 <input type="hidden" name="column" value="{{ header }}">
                                 <input type="text" class="form-control filter-input" name="filter" placeholder="Filter {{ header }}">
                                 <button type="submit" class="btn btn-sm btn-primary apply-filter">Apply</button>
-                                <a href="{{ url_for('display_config') }}" class="btn btn-sm btn-secondary clear-filter">Clear</a>
+                                <a href="{{ url_for('display_dqc') }}" class="btn btn-sm btn-secondary clear-filter">Clear</a>
                             </form>
                         </div>
                         <!-- Order By Icon -->
-                        <a href="{{ url_for('display_config', column=header, order='asc' if request.args.get('order') == 'desc' else 'desc', filter=request.args.get('filter', ''), page=1) }}" class="order-by-icon" style="margin-left: 5px;">
+                        <a href="{{ url_for('display_dqc', column=header, order='asc' if request.args.get('order') == 'desc' else 'desc', filter=request.args.get('filter', ''), page=1) }}" class="order-by-icon" style="margin-left: 5px;">
                             {% if request.args.get('column') == header %}
                                 {% if request.args.get('order') == 'asc' %}
                                     <i class="bi bi-arrow-up"></i> <!-- Ascending Icon -->
@@ -79,10 +79,10 @@
                         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#update-row-{{ loop.index }}">Edit</button>
         
                         <!-- Delete Button -->
-                        <form method="POST" action="{{ url_for('display_config', page=page) }}" style="display:inline;">
+                        <form method="POST" action="{{ url_for('display_dqc', page=page) }}" style="display:inline;">
                             <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="delete_filename" value="{{ item.get('FileName') }}">
-                            <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.get('FileName') }}', this.form)">Delete</button>
+                            <input type="hidden" name="delete_DqcId" value="{{ item.get('DqcId') }}">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.get('DqcId') }}', this.form)">Delete</button>
                         </form>
                     </td>
                     {% for header in headers %}
@@ -91,9 +91,9 @@
                 </tr>
                 <tr class="collapse update-form-row" id="update-row-{{ loop.index }}">
                     <td colspan="{{ headers|length + 1 }}">
-                        <form method="POST" action="{{ url_for('display_config', page=page) }}">
+                        <form method="POST" action="{{ url_for('display_dqc', page=page) }}">
                             <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="update_filename" value="{{ item.get('FileName') }}">
+                            <input type="hidden" name="update_DqcId" value="{{ item.get('DqcId') }}">
                             <div class="row">
                                 {% for header in headers %}
                                 <div class="col-md-3 mb-3">
@@ -113,7 +113,7 @@
         {% if total_pages > 1 %}
         <div class="pagination">
             {% if page > 1 %}
-                <a href="{{ url_for('display_config', page=page-1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Previous</a>
+                <a href="{{ url_for('display_dqc', page=page-1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Previous</a>
             {% else %}
                 <span class="disabled">Previous</span>
             {% endif %}
@@ -122,12 +122,12 @@
                 {% if i == page %}
                     <span class="current">{{ i }}</span>
                 {% else %}
-                    <a href="{{ url_for('display_config', page=i, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">{{ i }}</a>
+                    <a href="{{ url_for('display_dqc', page=i, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">{{ i }}</a>
                 {% endif %}
             {% endfor %}
         
             {% if page < total_pages %}
-                <a href="{{ url_for('display_config', page=page+1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Next</a>
+                <a href="{{ url_for('display_dqc', page=page+1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Next</a>
             {% else %}
                 <span class="disabled">Next</span>
             {% endif %}
@@ -135,14 +135,17 @@
         {% endif %}
 
         <div class="add-form">
-            <h3>Add New Spark Job Configuration</h3>
-            <form method="POST" action="{{ url_for('display_config') }}" id="addForm">
+            <h3>Add New DQC Configuration</h3>
+            <form method="POST" action="{{ url_for('display_dqc') }}" id="addForm">
                 <input type="hidden" name="action" value="add">
                 {% for header in headers %}
                 <div class="mb-3">
                     <label for="{{ header }}" class="form-label">{{ header }}</label>
-                    <input type="text" class="form-control" id="{{ header }}" name="{{ header }}" required>
-                    <div class="form-text text-muted required-text">This field is required.</div>
+                    <input type="text" class="form-control" id="{{ header }}" name="{{ header }}" 
+                           {% if header != 'RefTable' %} required {% endif %}>
+                    <div class="form-text text-muted required-text" {% if header == 'RefTable' %} style="display: none;" {% endif %}>
+                        This field is required.
+                    </div>
                 </div>
                 {% endfor %}
                 <button type="submit" class="btn btn-primary">Add New Item</button>
@@ -150,8 +153,8 @@
         </div>
         
         <script>
-            function confirmDelete(filename, form) {
-                if (confirm(`Are you sure you want to delete "${filename}"?`)) {
+            function confirmDelete(DqcId, form) {
+                if (confirm(`Are you sure you want to delete "${DqcId}"?`)) {
                     form.submit();
                 }
             }

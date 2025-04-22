@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+from dqcPage import get_paginated_dqc_data, save_dqc_config_data, get_dqc_config_data, get_config_filepath
 import csv
 import os
 import math
@@ -121,14 +122,86 @@ def display_config():
             sort_order=sort_order
         )
 
-@app.route('/database-config')
-def database_config():
-    return render_template('database_config.html')
+@app.route('/dqc', methods=['GET', 'POST'])
+def display_dqc():
+    page = request.args.get('page', 1, type=int)
+    filter_value = request.args.get('filter', '').strip()
+    filter_column = request.args.get('column', '').strip()
+    sort_column = request.args.get('column', '').strip()
+    sort_order = request.args.get('order', 'asc')
+
+    # Fetch paginated data
+    dqc_data = get_paginated_dqc_data(page, filter_value, filter_column, sort_column, sort_order)
+    CONFIG_FILEPATH_DQC = get_config_filepath()
+
+    if request.method == 'POST':
+        # Fetch the full dataset for modifications
+        full_data = get_dqc_config_data(CONFIG_FILEPATH_DQC)
+
+        if request.form.get('action') == 'add':
+            # Add a new row to the full dataset
+            new_row = {header: request.form.get(header, '').strip() for header in dqc_data["headers"]}
+            if ('DqcId' in new_row and 'BatchName' in new_row and
+                any(row.get('DqcId') == new_row['DqcId'] and row.get('BatchName') == new_row['BatchName'] for row in full_data)):
+                dqc_data["error_message"] = f"DqcId '{new_row['DqcId']}' with BatchName '{new_row['BatchName']}' already exists."
+            else:
+                full_data.append(new_row)
+                save_dqc_config_data(CONFIG_FILEPATH_DQC, full_data)  # Save the full dataset
+                return redirect(url_for('display_dqc'))
+
+        elif request.form.get('action') == 'update':
+            # Update an existing row in the full dataset
+            dqc_id_to_update = request.form.get('update_DqcId')
+            batch_name_to_update = request.form.get('update_BatchName')
+            if dqc_id_to_update and batch_name_to_update:
+                updated_row = {}
+                for header in dqc_data["headers"]:
+                    updated_row[header] = request.form.get(f'update_{header}')
+
+                updated = False
+                for i, row in enumerate(full_data):
+                    if row.get('DqcId') == dqc_id_to_update and row.get('BatchName') == batch_name_to_update:
+                        full_data[i].update(updated_row)
+                        updated = True
+                        break
+                if updated:
+                    save_dqc_config_data(CONFIG_FILEPATH_DQC, full_data)  # Save the full dataset
+                return redirect(url_for('display_dqc', page=page, filter=filter_value, column=filter_column))
+
+        elif request.form.get('action') == 'delete':
+            # Delete a row from the full dataset
+            dqc_id_to_delete = request.form.get('delete_DqcId')
+            batch_name_to_delete = request.form.get('delete_BatchName')
+            if dqc_id_to_delete and batch_name_to_delete:
+                full_data = [
+                    row for row in full_data
+                    if not (row.get('DqcId') == dqc_id_to_delete and row.get('BatchName') == batch_name_to_delete)
+                ]
+                save_dqc_config_data(CONFIG_FILEPATH_DQC, full_data)  # Save the full dataset
+                return redirect(url_for('display_dqc'))
+
+    return render_template(
+        'dqc_config.html',
+        config_data=dqc_data["paginated_data"],
+        headers=dqc_data["headers"],
+        page=page,
+        total_pages=dqc_data["total_pages"],
+        error_message=dqc_data["error_message"],
+        filter_criteria=filter_value,
+        filter_column=filter_column,
+        sort_column=sort_column,
+        sort_order=sort_order
+    )
 
 @app.route('/chart-data')
 def chart_data():
     """Provide paginated data for the dashboard chart."""
     config_data = get_config_data(CONFIG_FILEPATH)
+
+    # Load data from DataQuality_Config.csv
+    CONFIG_FILEPATH_DQC = get_config_filepath()  # Get the file path for DataQuality_Config.csv
+    dqc_data = get_dqc_config_data(CONFIG_FILEPATH_DQC)
+
     # Example: Count occurrences of each FileType
     file_type_counts = {}
     flag_counts = {}  # Count occurrences of Flag = 1 for each BatchName
@@ -138,20 +211,38 @@ def chart_data():
         if row.get('Flag') == '1':
             flag_counts[batch_name] = flag_counts.get(batch_name, 0) + 1
             
+    # Count total BatchName occurrences in DataQuality_Config.csv
+    dqc_batch_counts = {}
+    for row in dqc_data:
+        batch_name = row.get('BatchName', 'Unknown')
+        dqc_batch_counts[batch_name] = dqc_batch_counts.get(batch_name, 0) + 1
+
+    # Combine data for the stacked bar chart
+    combined_batch_names = set(file_type_counts.keys()).union(dqc_batch_counts.keys())
+    combined_data = []
+    for batch_name in combined_batch_names:
+        combined_data.append({
+            "batch_name": batch_name,
+            "master_job_count": file_type_counts.get(batch_name, 0),
+            "dqc_count": dqc_batch_counts.get(batch_name, 0),
+            "flag_count": flag_counts.get(batch_name, 0)
+        })
+
     # Sort and paginate the data
-    sorted_file_types = sorted(file_type_counts.items(), key=lambda x: x[1], reverse=True)
+    sorted_combined_data = sorted(combined_data, key=lambda x: x["master_job_count"], reverse=True)
     page = int(request.args.get('page', 1))  # Get the page number from the query string
     items_per_page = 10
     start_index = (page - 1) * items_per_page
     end_index = start_index + items_per_page
-    paginated_file_types = sorted_file_types[start_index:end_index]
+    paginated_combined_data = sorted_combined_data[start_index:end_index]
 
     # Prepare data for the chart
     chart_data = {
-        "labels": [item[0] for item in paginated_file_types],
-        "data": [item[1] for item in paginated_file_types],
-        "flag_data": [flag_counts.get(item[0], 0) for item in paginated_file_types],  # Add Flag = 1 counts
-        "total_pages": math.ceil(len(file_type_counts) / items_per_page)
+        "labels": [item["batch_name"] for item in paginated_combined_data],
+        "master_job_data": [item["master_job_count"] for item in paginated_combined_data],
+        "dqc_data": [item["dqc_count"] for item in paginated_combined_data],
+        "flag_data": [item["flag_count"] for item in paginated_combined_data],  # Add Flag = 1 counts
+        "total_pages": math.ceil(len(combined_data) / items_per_page)
     }
     return jsonify(chart_data)
 

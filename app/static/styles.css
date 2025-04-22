@@ -39,3 +39,25 @@ body {
 .order-by-icon i {
     font-size: 0.6rem; /* Adjust the size of the icons */
 }
+
+/* Ensure table cells wrap text and enable scrolling for overflow */
+table td:not(:first-child), table th:not(:first-child) {
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: nowrap; /* Prevent wrapping */
+    overflow: hidden; /* Hide overflowing content */
+    text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+    max-width: 200px; /* Set a maximum width for the cells */
+}
+
+table td:not(:first-child):hover {
+    overflow: auto; /* Enable scrolling on hover */
+    white-space: normal; /* Allow wrapping when scrolling */
+}
+
+.alert {
+    max-width: 100%; /* Ensure the alert box does not exceed the container width */
+    word-wrap: break-word; /* Break long words to wrap within the container */
+    word-break: break-word; /* Ensure proper word breaking */
+    white-space: normal; /* Allow text to wrap normally */
+}

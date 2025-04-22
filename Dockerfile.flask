@@ -5,10 +5,14 @@ FROM python:3.9-slim-buster
 WORKDIR /app
 
 # Copy the application dependencies requirements file to the container
-COPY requirements.txt .
+#COPY requirements.txt .
 
 # Install any dependencies
-RUN pip install -r requirements.txt
+#RUN pip install -r requirements.txt
+
+COPY library/ /tmp/library/
+
+RUN pip install --no-index --find-links=/tmp/library/ flask
 
 # Copy the application code into the container
 COPY . .
