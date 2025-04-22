@@ -38,6 +38,17 @@
         <h1>Welcome to the Configuration App</h1>
         <p>Below is the dashboard showing insights from the configuration data:</p>
     </div>
+
+    <!-- Record Counts Card -->
+    <div class="card shadow-lg" style="max-width: 20rem; position: absolute; top: 20px; right: 20px; border-radius: 10px; background-color: #f8f9fa; border: none;">
+        <div class="card-header text-center" style="font-size: 1.2rem; font-weight: bold; background-color: #e9ecef; border-radius: 10px 10px 0 0;">
+            Config Summary
+        </div>
+        <div class="card-body text-center">
+            <h5 class="card-title mb-3" style="color: #495057;">Spark Job: <span id="masterJobCount" class="badge bg-secondary text-white">0</span></h5>
+            <h5 class="card-title" style="color: #495057;">DQC : <span id="dqcCount" class="badge bg-secondary text-white">0</span></h5>
+        </div>
+    </div>
     
      <!-- Chart Section -->
     <div class="chart-wrapper">
@@ -49,10 +60,20 @@
         </div>
     </div>
 
-
     <!-- Chart.js Script -->
     <script>
         let currentPage = 1;
+
+        // Fetch and display record counts
+        function fetchRecordCounts() {
+        fetch('/record-counts')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('masterJobCount').textContent = data.master_job_count;
+                document.getElementById('dqcCount').textContent = data.dqc_count;
+                })
+                .catch(error => console.error('Error fetching record counts:', error));;
+        }
     
         function fetchChartData(page = 1) {
             fetch(`/chart-data?page=${page}`)
@@ -173,6 +194,7 @@
     
         // Fetch initial chart data
         document.addEventListener('DOMContentLoaded', () => {
+            fetchRecordCounts(); // Fetch record counts
             fetchChartData(currentPage);
         });
     </script>

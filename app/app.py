@@ -250,5 +250,22 @@ def chart_data():
 def dashboard():
     return render_template('dashboard.html')
 
+@app.route('/record-counts')
+def record_counts():
+    """Fetch total record counts from master_job.csv and DataQuality_Config.csv."""
+    # Load data from master_job.csv
+    master_job_data = get_config_data(CONFIG_FILEPATH)
+    master_job_count = len(master_job_data)
+
+    # Load data from DataQuality_Config.csv
+    dqc_data = get_dqc_config_data(get_config_filepath())
+    dqc_count = len(dqc_data)
+
+    # Return the counts as JSON
+    return jsonify({
+        "master_job_count": master_job_count,
+        "dqc_count": dqc_count
+    })
+
 if __name__ == '__main__':
     app.run(debug=True)
