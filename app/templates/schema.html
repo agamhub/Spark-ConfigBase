@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schema Viewer</title>
+    <!-- Add Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-home"></i>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                {% include 'configbar.html' %}
+                {% include 'schemabar.html' %}
+                {% include 'stacksbar.html' %}
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Left Sidebar: List of Files -->
+            <div class="col-md-4 full-height"> <!-- Applied full-height class -->
+                <h4>List of Schema Files</h4>
+                
+                <!-- File Upload Form -->
+                <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" class="mb-3" onsubmit="return confirmOverwrite()">
+                    <div class="input-group">
+                        <input type="file" class="form-control" name="file" required>
+                        <button class="btn btn-success" type="submit">Upload</button>
+                    </div>
+                </form>
+
+                <!-- Success Message -->
+                {% if success_message %}
+                <div class="alert alert-success mt-3" role="alert">
+                    {{ success_message }}
+                </div>
+                {% endif %}
+            
+                <!-- Search Bar -->
+                <form method="GET" action="{{ url_for('schema') }}" class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="search" placeholder="Search schema files..." value="{{ search_query }}">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </form>
+            
+                <!-- List of schema -->
+                <div class="list-container"> <!-- Added list-container class -->
+                    <ul class="list-group">
+                        {% for file in files %}
+                        <li class="list-group-item {% if file == selected_file %}active{% endif %}">
+                            <a href="{{ url_for('schema_file', filename=file) }}" class="text-decoration-none {% if file == selected_file %}text-white{% endif %}">
+                                {{ file }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            
+                <!-- Pagination Controls -->
+                <div class="pagination-container"> <!-- Added pagination-container class -->
+                    <nav aria-label="Schema pagination">
+                        <ul class="pagination">
+                            <!-- Previous Button -->
+                            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('schema', search=search_query, page=page-1) }}" aria-label="Previous">
+                                    Previous
+                                </a>
+                            </li>
+    
+                            <!-- Dynamic Page Numbers -->
+                            {% for p in pagination_range %}
+                            <li class="page-item {% if p == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('schema', search=search_query, page=p) }}">{{ p }}</a>
+                            </li>
+                            {% endfor %}
+    
+                            <!-- Next Button -->
+                            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('schema', search=search_query, page=page+1) }}" aria-label="Next">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+    
+            <!-- Right Content: File Content -->
+            <div class="col-md-8">
+                {% if selected_file %}
+                <h4>Content of {{ selected_file }}</h4>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                {% for header in headers %}
+                                <th>{{ header }}</th>
+                                {% endfor %}
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                            <tr>
+                                <td>{{ row.ColumnName }}</td>
+                                <td>{{ row.DataType }}</td>
+                                <td>
+                                    <!-- Edit Button -->
+                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ loop.index }}">Edit</button>
+                                </td>
+                            </tr>
+                        
+                            <!-- Edit Modal -->
+                            <div class="modal fade" id="editModal{{ loop.index }}" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST" action="{{ url_for('schema_file', filename=selected_file) }}">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="editModalLabel">Edit Row</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <input type="hidden" name="action" value="edit">
+                                                <input type="hidden" name="row_index" value="{{ loop.index0 }}">
+                                                {% for header in headers %}
+                                                <div class="mb-3">
+                                                    <label for="{{ header }}{{ loop.index }}" class="form-label">{{ header }}</label>
+                                                    <input type="text" class="form-control" id="{{ header }}{{ loop.index }}" name="{{ header }}" value="{{ row[header] }}">
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+    
+                <!-- Add New Row Form -->
+                <h5 class="mt-4">Add New Row</h5>
+                <form method="POST" action="{{ url_for('schema_file', filename=selected_file) }}">
+                    <input type="hidden" name="action" value="add">
+                    <div class="row">
+                        {% for header in headers %}
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ header }}" class="form-label">{{ header }}</label>
+                            <input type="text" class="form-control" id="{{ header }}" name="{{ header }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-success">Add Row</button>
+                </form>
+                {% else %}
+                <h4>Select a file to view its content</h4>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function confirmOverwrite() {
+            return confirm("Are you sure you want to overwrite the file?");
+        }
+    </script>
+</body>
+</html>

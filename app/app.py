@@ -9,6 +9,7 @@ CONFIG_DIR = '/app/config'
 CONFIG_FILE = 'master_job.csv'
 CONFIG_FILEPATH = os.path.join(CONFIG_DIR, CONFIG_FILE)
 ROWS_PER_PAGE = 10
+SCHEMA_DIR = '/app/schema'
 
 def get_headers_from_csv(filepath):
     """Reads the header row from the CSV file."""
@@ -119,7 +120,9 @@ def display_config():
             filter_criteria=filter_value,
             filter_column=filter_column,
             sort_column=sort_column,
-            sort_order=sort_order
+            sort_order=sort_order,
+            max=max,
+            min=min
         )
 
 @app.route('/dqc', methods=['GET', 'POST'])
@@ -190,7 +193,9 @@ def display_dqc():
         filter_criteria=filter_value,
         filter_column=filter_column,
         sort_column=sort_column,
-        sort_order=sort_order
+        sort_order=sort_order,
+        max=max,
+        min=min
     )
 
 @app.route('/chart-data')
@@ -261,15 +266,196 @@ def record_counts():
     dqc_data = get_dqc_config_data(get_config_filepath())
     dqc_count = len(dqc_data)
 
+    #schema load
+    schema_files = [f for f in os.listdir(SCHEMA_DIR) if f.endswith('.csv')]
+    schema_count = len(schema_files)
+
     # Return the counts as JSON
     return jsonify({
         "master_job_count": master_job_count,
-        "dqc_count": dqc_count
+        "dqc_count": dqc_count,
+        "schema_count": schema_count
     })
 
 @app.route('/application-stacks')
 def appstacks():
     return render_template('appstacks.html')
+
+@app.route('/schema', methods=['GET'])
+def schema():
+    """Display the list of schema files with pagination and search."""
+    search_query = request.args.get('search', '').lower()  # Get the search query
+    page = int(request.args.get('page', 1))  # Get the current page number
+    per_page = 15  # Default number of items per page
+
+    try:
+        # Get all schema files
+        all_files = [f for f in os.listdir(SCHEMA_DIR) if f.endswith('.csv')]
+
+        # Filter files based on the search query
+        if search_query:
+            filtered_files = [f for f in all_files if search_query in f.lower()]
+        else:
+            filtered_files = all_files
+
+        # Paginate the filtered files
+        total_files = len(filtered_files)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_files = filtered_files[start:end]
+
+        # Calculate total pages
+        total_pages = (total_files + per_page - 1) // per_page
+
+        # Calculate the pagination range (limit to 5 pages at a time)
+        start_page = max(1, page - 2)
+        end_page = min(total_pages, start_page + 4)
+        pagination_range = range(start_page, end_page + 1)
+    except FileNotFoundError:
+        paginated_files = []
+        total_pages = 0
+        pagination_range = range(0)
+
+    return render_template(
+        'schema.html',
+        files=paginated_files,
+        selected_file=None,
+        headers=None,
+        rows=None,
+        search_query=search_query,
+        page=page,
+        total_pages=total_pages,
+        pagination_range=pagination_range
+    )
+
+@app.route('/schema/<filename>', methods=['GET', 'POST'])
+def schema_file(filename):
+    """Display and modify the content of a selected schema file."""
+    filepath = os.path.join(SCHEMA_DIR, filename)
+    if not os.path.exists(filepath):
+        return f"File {filename} not found.", 404
+
+    try:
+        # Read the CSV file with the correct delimiter
+        with open(filepath, 'r', newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter='|')  # Use '|' as the delimiter
+            headers = next(reader, [])  # Get the header row
+            rows = [row for row in reader]  # Keep rows as lists for easier manipulation
+    except Exception as e:
+        return f"Error reading file {filename}: {e}", 500
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'add':
+            # Add a new row
+            new_row = [request.form.get(header, '') for header in headers]
+            rows.append(new_row)
+        elif action == 'edit':
+            # Edit an existing row
+            row_index = int(request.form.get('row_index'))
+            rows[row_index] = [request.form.get(header, '') for header in headers]
+
+        # Save the updated rows back to the CSV file
+        try:
+            with open(filepath, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile, delimiter='|')  # Use '|' as the delimiter
+                writer.writerow(headers)  # Write the header row
+                writer.writerows(rows)  # Write all rows
+        except Exception as e:
+            return f"Error writing to file {filename}: {e}", 500
+
+        return redirect(url_for('schema_file', filename=filename))
+
+    # Pagination logic for the list of schema files
+    search_query = request.args.get('search', '').lower()
+    page = int(request.args.get('page', 1))
+    per_page = 15
+
+    try:
+        all_files = [f for f in os.listdir(SCHEMA_DIR) if f.endswith('.csv')]
+        if search_query:
+            filtered_files = [f for f in all_files if search_query in f.lower()]
+        else:
+            filtered_files = all_files
+
+        total_files = len(filtered_files)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_files = filtered_files[start:end]
+
+        total_pages = (total_files + per_page - 1) // per_page
+        start_page = max(1, page - 2)
+        end_page = min(total_pages, start_page + 4)
+        pagination_range = range(start_page, end_page + 1)
+    except FileNotFoundError:
+        paginated_files = []
+        total_pages = 0
+        pagination_range = range(0)
+
+    # Render the rows with headers and split data
+    parsed_rows = [{"ColumnName": row[0], "DataType": row[1]} for row in rows if len(row) >= 2]
+
+    return render_template(
+        'schema.html',
+        files=paginated_files,
+        selected_file=filename,
+        headers=headers,
+        rows=parsed_rows,
+        search_query=search_query,
+        page=page,
+        total_pages=total_pages,
+        pagination_range=pagination_range
+    )
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return "No file part", 400
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file", 400
+    if file:
+        filepath = os.path.join(SCHEMA_DIR, file.filename)
+        file.save(filepath)
+
+        # Reuse the logic from the `schema` route to pass the required context
+        search_query = request.args.get('search', '').lower()
+        page = int(request.args.get('page', 1))
+        per_page = 15
+
+        try:
+            all_files = [f for f in os.listdir(SCHEMA_DIR) if f.endswith('.csv')]
+            if search_query:
+                filtered_files = [f for f in all_files if search_query in f.lower()]
+            else:
+                filtered_files = all_files
+
+            total_files = len(filtered_files)
+            start = (page - 1) * per_page
+            end = start + per_page
+            paginated_files = filtered_files[start:end]
+
+            total_pages = (total_files + per_page - 1) // per_page
+            start_page = max(1, page - 2)
+            end_page = min(total_pages, start_page + 4)
+            pagination_range = range(start_page, end_page + 1)
+        except FileNotFoundError:
+            paginated_files = []
+            total_pages = 0
+            pagination_range = range(0)
+
+        return render_template(
+            'schema.html',
+            files=paginated_files,
+            selected_file=None,
+            headers=None,
+            rows=None,
+            search_query=search_query,
+            page=page,
+            total_pages=total_pages,
+            pagination_range=pagination_range,
+            success_message="File has been uploaded successfully!"
+        )
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -22,9 +22,8 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNavDropdown">
                         {% include 'configbar.html' %}
-                    </li>
+                        {% include 'schemabar.html' %}
                         {% include 'stacksbar.html' %}
-                    </li>
                 </ul>
             </div>
         </div>
@@ -37,13 +36,23 @@
     </div>
 
     <!-- Record Counts Card -->
-    <div class="card shadow-lg" style="max-width: 20rem; position: absolute; top: 20px; right: 20px; border-radius: 10px; background-color: #f8f9fa; border: none;">
-        <div class="card-header text-center" style="font-size: 1.2rem; font-weight: bold; background-color: #e9ecef; border-radius: 10px 10px 0 0;">
+    <div class="card shadow-lg" style="max-width: 22rem; position: absolute; top: 20px; right: 20px; border-radius: 15px; background-color: #f8f9fa; border: none;">
+        <div class="card-header text-center" style="font-size: 1.3rem; font-weight: bold; background-color: #6c757d; color: white; border-radius: 15px 15px 0 0; padding: 0.5rem;">
             Config Summary
         </div>
-        <div class="card-body text-center">
-            <h5 class="card-title mb-3" style="color: #495057;">Spark Job: <span id="masterJobCount" class="badge bg-secondary text-white">0</span></h5>
-            <h5 class="card-title" style="color: #495057;">DQC : <span id="dqcCount" class="badge bg-secondary text-white">0</span></h5>
+        <div class="card-body text-center" style="padding: 0.75rem;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span style="font-size: 0.9rem; font-weight: 500; color: #6c757d;">Spark Job</span>
+                <span id="masterJobCount" class="badge" style="font-size: 0.9rem; padding: 0.4rem 0.8rem; background-color: #d1e7dd; color: #0f5132;">0</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span style="font-size: 0.9rem; font-weight: 500; color: #6c757d;">Schema</span>
+                <span id="schemacount" class="badge" style="font-size: 0.9rem; padding: 0.4rem 0.8rem; background-color: #cff4fc; color: #055160;">0</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span style="font-size: 0.9rem; font-weight: 500; color: #6c757d;">DQC</span>
+                <span id="dqcCount" class="badge" style="font-size: 0.9rem; padding: 0.4rem 0.8rem; background-color: #fef3c7; color: #664d03;">0</span>
+            </div>
         </div>
     </div>
     
@@ -68,6 +77,7 @@
             .then(data => {
                 document.getElementById('masterJobCount').textContent = data.master_job_count;
                 document.getElementById('dqcCount').textContent = data.dqc_count;
+                document.getElementById('schemacount').textContent = data.schema_count;
                 })
                 .catch(error => console.error('Error fetching record counts:', error));;
         }

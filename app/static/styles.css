@@ -61,3 +61,167 @@ table td:not(:first-child):hover {
     word-break: break-word; /* Ensure proper word breaking */
     white-space: normal; /* Allow text to wrap normally */
 }
+
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+h2 {
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f8f9fa;
+}
+
+/* Input Styles */
+input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    margin-bottom: 5px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+/* Form Styles */
+.add-form {
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+}
+
+.add-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.add-form button {
+    margin-top: 15px;
+}
+
+/* Error Message */
+.error {
+    color: red;
+    margin-top: 10px;
+}
+
+/* Back Button */
+.back-home-btn {
+    margin-bottom: 20px;
+}
+
+/* Pagination Styles */
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.pagination a, .pagination span {
+    padding: 8px 12px;
+    margin: 0 5px;
+    border: 1px solid #ccc;
+    text-decoration: none;
+    color: black;
+    border-radius: 4px;
+}
+
+.pagination a:hover {
+    background-color: #f0f0f0;
+}
+
+.pagination .current {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.pagination .disabled {
+    color: #777;
+    border-color: #ddd;
+    pointer-events: none;
+}
+
+/* Update Form Row */
+.update-form-row {
+    background-color: #e9ecef;
+}
+
+.update-button {
+    margin-top: 10px;
+}
+
+/* Custom Navbar Styles */
+.navbar {
+    background-color: #f8f9fa; /* Light background */
+}
+
+.navbar-brand:hover {
+    color: #0056b3; /* Darker blue on hover */
+}
+
+.navbar-nav .nav-link {
+    color: #495057; /* Dark gray for links */
+}
+
+.navbar-nav .nav-link:hover {
+    color: #007bff; /* Blue on hover */
+}
+
+.container {
+    margin-top: 20px;
+}
+
+.row {
+    display: flex;
+    align-items: flex-start; /* Align items to the top */
+}
+
+.col-md-4 {
+    max-height: 500px;
+    overflow-y: auto; /* Add scroll if the list is long */
+}
+
+.col-md-8 {
+    padding-left: 20px;
+}
+
+.full-height {
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height */
+}
+
+.list-container {
+    flex: 1; /* Take up remaining space */
+    overflow-y: auto; /* Allow scrolling only within the list */
+    margin-bottom: 1rem; /* Add spacing between the list and pagination */
+}
+
+.pagination-container {
+    flex-shrink: 0; /* Ensure pagination stays visible */
+}

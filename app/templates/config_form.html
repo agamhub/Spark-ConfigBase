@@ -7,26 +7,7 @@
     <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { font-family: sans-serif; }
-        h2 { text-align: center; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #f8f9fa; }
-        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; margin-bottom: 5px; border: 1px solid #ced4da; border-radius: 4px; }
-        .add-form { margin-top: 30px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; background-color: #f8f9fa; }
-        .add-form label { display: block; margin-bottom: 8px; font-weight: bold; }
-        .add-form button { margin-top: 15px; }
-        .error { color: red; margin-top: 10px; }
-        .back-home-btn { margin-bottom: 20px; }
-        .pagination { display: flex; justify-content: center; margin-top: 20px; }
-        .pagination a, .pagination span { padding: 8px 12px; margin: 0 5px; border: 1px solid #ccc; text-decoration: none; color: black; border-radius: 4px; }
-        .pagination a:hover { background-color: #f0f0f0; }
-        .pagination .current { background-color: #007bff; color: white; border-color: #007bff; }
-        .pagination .disabled { color: #777; border-color: #ddd; pointer-events: none; }
-        .update-form-row { background-color: #e9ecef; }
-        .update-button { margin-top: 10px; }
-    </style>
+    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -39,9 +20,8 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                         {% include 'configbar.html' %}
-                    </li>
+                        {% include 'schemabar.html' %}
                         {% include 'stacksbar.html' %}
-                    </li>
                 </ul>
             </div>
         </div>
@@ -53,100 +33,107 @@
         <div class="alert alert-danger">{{ error_message }}</div>
         {% endif %}
 
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Action</th>
-                    {% for header in headers %}
-                    <th>
-                        {{ header }}
-                        <!-- Filter Icon -->
-                        <span class="filter-icon" data-column="{{ loop.index0 }}" style="cursor: pointer; margin-left: 5px;">
-                            <i class="bi bi-filter"></i> <!-- Bootstrap filter icon -->
-                        </span>
-                        <!-- Filter Dropdown -->
-                        <div class="filter-dropdown" data-column="{{ loop.index0 }}" style="display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 100;">
-                            <form method="GET" action="{{ url_for('display_config') }}">
-                                <input type="hidden" name="column" value="{{ header }}">
-                                <input type="text" class="form-control filter-input" name="filter" placeholder="Filter {{ header }}">
-                                <button type="submit" class="btn btn-sm btn-primary apply-filter">Apply</button>
-                                <a href="{{ url_for('display_config') }}" class="btn btn-sm btn-secondary clear-filter">Clear</a>
-                            </form>
-                        </div>
-                        <!-- Order By Icon -->
-                        <a href="{{ url_for('display_config', column=header, order='asc' if request.args.get('order') == 'desc' else 'desc', filter=request.args.get('filter', ''), page=1) }}" class="order-by-icon" style="margin-left: 5px;">
-                            {% if request.args.get('column') == header %}
-                                {% if request.args.get('order') == 'asc' %}
-                                    <i class="bi bi-arrow-up"></i> <!-- Ascending Icon -->
-                                {% else %}
-                                    <i class="bi bi-arrow-down"></i> <!-- Descending Icon -->
-                                {% endif %}
-                            {% else %}
-                                <i class="bi bi-arrow-down-up"></i> <!-- Default Icon -->
-                            {% endif %}
-                        </a>
-                    </th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody id="configTableBody">
-                {% for item in config_data %}
-                <tr>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#update-row-{{ loop.index }}">Edit</button>
-        
-                        <!-- Delete Button -->
-                        <form method="POST" action="{{ url_for('display_config', page=page) }}" style="display:inline;">
-                            <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="delete_filename" value="{{ item.get('FileName') }}">
-                            <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.get('FileName') }}', this.form)">Delete</button>
-                        </form>
-                    </td>
-                    {% for header in headers %}
-                    <td>{{ item.get(header, '') }}</td>
-                    {% endfor %}
-                </tr>
-                <tr class="collapse update-form-row" id="update-row-{{ loop.index }}">
-                    <td colspan="{{ headers|length + 1 }}">
-                        <form method="POST" action="{{ url_for('display_config', page=page) }}">
-                            <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="update_filename" value="{{ item.get('FileName') }}">
-                            <div class="row">
-                                {% for header in headers %}
-                                <div class="col-md-3 mb-3">
-                                    <label for="update_{{ header }}" class="form-label">{{ header }}</label>
-                                    <input type="text" class="form-control form-control-sm" id="update_{{ header }}" name="update_{{ header }}" value="{{ item.get(header, '') }}">
-                                </div>
-                                {% endfor %}
+        <div class="table-responsive" style="max-width: 1400px; overflow-x: auto; margin: 0 auto;">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Action</th>
+                        {% for header in headers %}
+                        <th>
+                            {{ header }}
+                            <!-- Filter Icon -->
+                            <span class="filter-icon" data-column="{{ loop.index0 }}" style="cursor: pointer; margin-left: 5px;">
+                                <i class="bi bi-filter"></i> <!-- Bootstrap filter icon -->
+                            </span>
+                            <!-- Filter Dropdown -->
+                            <div class="filter-dropdown" data-column="{{ loop.index0 }}" style="display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 100;">
+                                <form method="GET" action="{{ url_for('display_config') }}">
+                                    <input type="hidden" name="column" value="{{ header }}">
+                                    <input type="text" class="form-control filter-input" name="filter" placeholder="Filter {{ header }}">
+                                    <button type="submit" class="btn btn-sm btn-primary apply-filter">Apply</button>
+                                    <a href="{{ url_for('display_config') }}" class="btn btn-sm btn-secondary clear-filter">Clear</a>
+                                </form>
                             </div>
-                            <button type="submit" class="btn btn-success btn-sm update-button">Save Changes</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                            <!-- Order By Icon -->
+                            <a href="{{ url_for('display_config', column=header, order='asc' if request.args.get('order') == 'desc' else 'desc', filter=request.args.get('filter', ''), page=1) }}" class="order-by-icon" style="margin-left: 5px;">
+                                {% if request.args.get('column') == header %}
+                                    {% if request.args.get('order') == 'asc' %}
+                                        <i class="bi bi-arrow-up"></i> <!-- Ascending Icon -->
+                                    {% else %}
+                                        <i class="bi bi-arrow-down"></i> <!-- Descending Icon -->
+                                    {% endif %}
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up"></i> <!-- Default Icon -->
+                                {% endif %}
+                            </a>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody id="configTableBody">
+                    {% for item in config_data %}
+                    <tr>
+                        <td style="white-space: nowrap; width: 120px;">
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#update-row-{{ loop.index }}">Edit</button>
+            
+                            <!-- Delete Button -->
+                            <form method="POST" action="{{ url_for('display_config', page=page) }}" style="display:inline;">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="delete_filename" value="{{ item.get('FileName') }}">
+                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.get('FileName') }}', this.form)">Delete</button>
+                            </form>
+                        </td>
+                        {% for header in headers %}
+                        <td>{{ item.get(header, '') }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr class="collapse update-form-row" id="update-row-{{ loop.index }}">
+                        <td colspan="{{ headers|length + 1 }}">
+                            <form method="POST" action="{{ url_for('display_config', page=page) }}">
+                                <input type="hidden" name="action" value="update">
+                                <input type="hidden" name="update_filename" value="{{ item.get('FileName') }}">
+                                <div class="row">
+                                    {% for header in headers %}
+                                    <div class="col-md-3 mb-3">
+                                        <label for="update_{{ header }}" class="form-label">{{ header }}</label>
+                                        <input type="text" class="form-control form-control-sm" id="update_{{ header }}" name="update_{{ header }}" value="{{ item.get(header, '') }}">
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <button type="submit" class="btn btn-success btn-sm update-button">Save Changes</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
         {% if total_pages > 1 %}
         <div class="pagination">
+            <!-- Previous Button -->
             {% if page > 1 %}
-                <a href="{{ url_for('display_config', page=page-1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Previous</a>
+            <a href="{{ url_for('display_config', page=page-1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}" class="page-link">Previous</a>
             {% else %}
-                <span class="disabled">Previous</span>
+            <span class="disabled page-link">Previous</span>
             {% endif %}
-        
-            {% for i in range(1, total_pages + 1) %}
+
+            <!-- Dynamic Page Numbers -->
+            {% set start_page = max(1, page - 2) %}
+            {% set end_page = min(total_pages, start_page + 4) %}
+            {% for i in range(start_page, end_page + 1) %}
                 {% if i == page %}
-                    <span class="current">{{ i }}</span>
+                <span class="current page-link">{{ i }}</span>
                 {% else %}
-                    <a href="{{ url_for('display_config', page=i, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">{{ i }}</a>
+                <a href="{{ url_for('display_config', page=i, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}" class="page-link">{{ i }}</a>
                 {% endif %}
             {% endfor %}
-        
+
+            <!-- Next Button -->
             {% if page < total_pages %}
-                <a href="{{ url_for('display_config', page=page+1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}">Next</a>
+            <a href="{{ url_for('display_config', page=page+1, filter=request.args.get('filter', ''), column=request.args.get('column', '')) }}" class="page-link">Next</a>
             {% else %}
-                <span class="disabled">Next</span>
+            <span class="disabled page-link">Next</span>
             {% endif %}
         </div>
         {% endif %}
@@ -165,7 +152,7 @@
                 <button type="submit" class="btn btn-primary">Add New Item</button>
             </form>
         </div>
-        
+
         <script>
             function confirmDelete(filename, form) {
                 if (confirm(`Are you sure you want to delete "${filename}"?`)) {
