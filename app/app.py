@@ -346,14 +346,17 @@ def schema_file(filename):
 
     if request.method == 'POST':
         action = request.form.get('action')
-        if action == 'add':
-            # Add a new row
-            new_row = [request.form.get(header, '') for header in headers]
-            rows.append(new_row)
+        if action == 'delete':
+                row_index = int(request.form.get('row_index'))
+                rows.pop(row_index)  # Remove the row at the specified index
         elif action == 'edit':
             # Edit an existing row
             row_index = int(request.form.get('row_index'))
             rows[row_index] = [request.form.get(header, '') for header in headers]
+        elif action == 'add':
+            # Add a new row
+            new_row = [request.form.get(header, '') for header in headers]
+            rows.append(new_row)
 
         # Save the updated rows back to the CSV file
         try:
@@ -456,6 +459,20 @@ def upload_file():
             pagination_range=pagination_range,
             success_message="File has been uploaded successfully!"
         )
+    
+@app.route('/delete-file', methods=['POST'])
+def delete_file():
+    """Delete a schema file."""
+    filename = request.form.get('filename')
+    if not filename:
+        return "No file specified", 400
+
+    filepath = os.path.join(SCHEMA_DIR, filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return redirect(url_for('schema'))
+    else:
+        return f"File {filename} not found.", 404
 
 if __name__ == '__main__':
     app.run(debug=True)
