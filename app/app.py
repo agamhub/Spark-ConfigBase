@@ -10,6 +10,7 @@ CONFIG_FILE = 'master_job.csv'
 CONFIG_FILEPATH = os.path.join(CONFIG_DIR, CONFIG_FILE)
 ROWS_PER_PAGE = 10
 SCHEMA_DIR = '/app/schema'
+STORED_PROCEDURES_DIR = '/app/SP'
 
 def get_headers_from_csv(filepath):
     """Reads the header row from the CSV file."""
@@ -473,6 +474,119 @@ def delete_file():
         return redirect(url_for('schema'))
     else:
         return f"File {filename} not found.", 404
+
+@app.route('/stored-procedures', methods=['GET'])
+def stored_procedures():
+    """Display the list of stored procedures with pagination and search."""
+    search_query = request.args.get('search', '').lower()  # Get the search query
+    page = int(request.args.get('page', 1))  # Get the current page number
+    per_page = 10  # Default number of items per page
+
+    try:
+        # Get all stored procedure files
+        all_files = [f for f in os.listdir(STORED_PROCEDURES_DIR) if f.endswith('.sql')]
+
+        # Filter files based on the search query
+        if search_query:
+            filtered_files = [f for f in all_files if search_query in f.lower()]
+        else:
+            filtered_files = all_files
+
+        # Paginate the filtered files
+        total_files = len(filtered_files)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_files = filtered_files[start:end]
+
+        # Calculate total pages
+        total_pages = (total_files + per_page - 1) // per_page
+
+        # Calculate the pagination range (limit to 5 pages at a time)
+        start_page = max(1, page - 2)
+        end_page = min(total_pages, start_page + 4)
+        pagination_range = range(start_page, end_page + 1)
+    except FileNotFoundError:
+        paginated_files = []
+        total_pages = 0
+        pagination_range = range(0)
+
+    return render_template(
+        'stored_procedure.html',
+        files=paginated_files,
+        search_query=search_query,
+        page=page,
+        total_pages=total_pages,
+        pagination_range=pagination_range
+    )
+
+@app.route('/stored-procedure/<filename>', methods=['GET', 'POST'])
+def stored_procedure_view(filename):
+    """Display and edit the content of a stored procedure file."""
+    filepath = os.path.join(STORED_PROCEDURES_DIR, filename)
+    if not os.path.exists(filepath):
+        return f"File {filename} not found.", 404
+
+    if request.method == 'POST':
+        # Save the updated content back to the file
+        updated_content = request.form.get('content')
+        try:
+            with open(filepath, 'w') as file:
+                file.write(updated_content)
+            return redirect(url_for('stored_procedures'))
+        except Exception as e:
+            return f"Error saving file {filename}: {e}", 500
+
+    try:
+        # Read the content of the file
+        with open(filepath, 'r') as file:
+            content = file.read()
+    except Exception as e:
+        return f"Error reading file {filename}: {e}", 500
+
+    return render_template('stored_procedure_edit.html', filename=filename, content=content)
+
+@app.route('/delete-stored-procedure', methods=['POST'])
+def delete_stored_procedure():
+    """Delete a stored procedure file."""
+    filename = request.form.get('filename')
+    if not filename:
+        return "No file specified", 400
+
+    filepath = os.path.join(STORED_PROCEDURES_DIR, filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return redirect(url_for('stored_procedures'))
+    else:
+        return f"File {filename} not found.", 404
+    
+@app.route('/delete-multiple-stored-procedures', methods=['POST'])
+def delete_multiple_stored_procedures():
+    """Delete multiple stored procedure files."""
+    selected_files = request.form.getlist('selected_files')
+    if not selected_files:
+        return "No files selected", 400
+
+    for filename in selected_files:
+        filepath = os.path.join(STORED_PROCEDURES_DIR, filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+    return redirect(url_for('stored_procedures'))
+    
+@app.route('/upload-stored-procedure', methods=['POST'])
+def upload_stored_procedure():
+    """Upload a new stored procedure file."""
+    if 'file' not in request.files:
+        return "No file part", 400
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file", 400
+    if file and file.filename.endswith('.sql'):
+        filepath = os.path.join(STORED_PROCEDURES_DIR, file.filename)
+        file.save(filepath)
+        return redirect(url_for('stored_procedures'))
+    else:
+        return "Invalid file type. Only .sql files are allowed.", 400
 
 if __name__ == '__main__':
     app.run(debug=True)

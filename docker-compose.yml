@@ -10,6 +10,7 @@ services:
       - ./app:/app
       - /mnt/e/database/Config:/app/config
       - /mnt/e/database/Schema:/app/schema
+      - /mnt/e/database/SP:/app/SP
     networks:
       - app-network
 

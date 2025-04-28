@@ -145,8 +145,10 @@
                 {% for header in headers %}
                 <div class="mb-3">
                     <label for="{{ header }}" class="form-label">{{ header }}</label>
-                    <input type="text" class="form-control" id="{{ header }}" name="{{ header }}" required>
-                    <div class="form-text text-muted required-text">This field is required.</div>
+                    <input type="text" class="form-control" id="{{ header }}" name="{{ header }}"
+                        {% if header not in ['Backdated', 'Refreshment','Reformat'] %} required {% endif %}>
+                    <div class="form-text text-muted required-text"  {% if header == 'Backdated' %} style="display: none;" {% endif %}>
+                        This field is required.</div>
                 </div>
                 {% endfor %}
                 <button type="submit" class="btn btn-primary">Add New Item</button>
