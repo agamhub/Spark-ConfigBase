@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, Response, stream_with_context
 from dqcPage import get_paginated_dqc_data, save_dqc_config_data, get_dqc_config_data, get_config_filepath
+from sparklogs import get_log_statuses
 import csv
 import os
 import math
+import time
 
 app = Flask(__name__)
 CONFIG_DIR = '/app/config'
@@ -11,6 +13,7 @@ CONFIG_FILEPATH = os.path.join(CONFIG_DIR, CONFIG_FILE)
 ROWS_PER_PAGE = 10
 SCHEMA_DIR = '/app/schema'
 STORED_PROCEDURES_DIR = '/app/SP'
+LOGS_DIR = "/app/logs"
 
 def get_headers_from_csv(filepath):
     """Reads the header row from the CSV file."""
@@ -587,6 +590,26 @@ def upload_stored_procedure():
         return redirect(url_for('stored_procedures'))
     else:
         return "Invalid file type. Only .sql files are allowed.", 400
+    
+@app.route('/logs', methods=['GET'])
+def logs():
+    """Display the log file statuses."""
+    logs = get_log_statuses()
+    return render_template('logs.html', logs=logs)
+
+@app.route('/logs/preview/<filename>', methods=['GET'])
+def preview_log(filename):
+    """Open and display the content of a log file."""
+    filepath = os.path.join(LOGS_DIR, filename)
+    if not os.path.exists(filepath):
+        return f"Log file {filename} not found.", 404
+
+    try:
+        with open(filepath, "r") as file:
+            content = file.read()
+        return render_template('log_preview.html', filename=filename, content=content)
+    except Exception as e:
+        return f"Error reading log file {filename}: {e}", 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -11,6 +11,7 @@ services:
       - /mnt/e/database/Config:/app/config
       - /mnt/e/database/Schema:/app/schema
       - /mnt/e/database/SP:/app/SP
+      - /mnt/e/Repo/Spark-Bitnami/mnt/apps/logs:/app/logs
     networks:
       - app-network
 
