@@ -14,7 +14,9 @@ services:
       - /mnt/e/Repo/Spark-Bitnami/mnt/apps/logs:/app/logs
     networks:
       - app-network
-
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Allows access to host services
+      
 networks:
   app-network:
     driver: bridge

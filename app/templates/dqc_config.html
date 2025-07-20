@@ -79,7 +79,8 @@
                             <form method="POST" action="{{ url_for('display_dqc', page=page) }}" style="display:inline;">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="delete_DqcId" value="{{ item.get('DqcId') }}">
-                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.get('DqcId') }}', this.form)">Delete</button>
+                                <input type="hidden" name="delete_BatchName" value="{{ item.get('BatchName') }}">
+                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.get('DqcId') }}', '{{ item.get('BatchName') }}', this.form)">Delete</button>
                             </form>
                         </td>
                         {% for header in headers %}
@@ -153,8 +154,8 @@
         </div>
 
         <script>
-            function confirmDelete(DqcId, form) {
-                if (confirm(`Are you sure you want to delete "${DqcId}"?`)) {
+            function confirmDelete(DqcId,BatchName,form) {
+                if (confirm(`Are you sure you want to delete "${DqcId}" and "${BatchName}"?`)) {
                     form.submit();
                 }
             }

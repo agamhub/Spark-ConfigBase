@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk CSV Editor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Basic custom styles */
+        body {
+            background-color: #f8f9fa;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        .container {
+            max-width: 1400px;
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        }
+        th,
+        td {
+            white-space: nowrap;
+            padding: 0.75rem;
+            vertical-align: middle;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .update-controls {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .form-check-input {
+            cursor: pointer;
+        }
+        .update-controls .row > div:last-child {
+            align-self: flex-end;
+        }
+        .pagination {
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        .pagination a,
+        .pagination span {
+            padding: 0.5rem 0.75rem;
+            margin: 0 0.25rem;
+            border: 1px solid #dee2e6;
+            text-decoration: none;
+            color: #495057;
+            border-radius: 0.25rem;
+        }
+        .pagination a:hover {
+            background-color: #e9ecef;
+        }
+        .pagination .current {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .pagination .disabled {
+            color: #6c757d;
+            pointer-events: none;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">Bulk Edit CSV Data</h1>
+            <a href="{{ url_for('display_config') }}" class="btn btn-secondary">Back to Config</a>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% set alert_type = 'info' %}
+                    {% if category == 'success' %}
+                        {% set alert_type = 'success' %}
+                    {% elif category == 'error' %}
+                        {% set alert_type = 'danger' %}
+                    {% elif category == 'warning' %}
+                        {% set alert_type = 'warning' %}
+                    {% endif %}
+                    <div class="alert alert-{{ alert_type }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form action="{{ url_for('bulk_update') }}" method="POST">
+            <div class="update-controls">
+                <h2 class="h5 mb-3">Update Filtered Rows</h2>
+                <div class="row g-3 mb-3">
+                    <div class="col-md">
+                        <label for="filter_column" class="form-label">Filter Column:</label>
+                        <select id="filter_column" name="filter_column" required class="form-select">
+                            <option value="" disabled selected>Select Column</option>
+                            <option value="BatchName">BatchName</option>
+                        </select>
+                    </div>
+                    <div class="col-md">
+                        <label for="filter_value" class="form-label">Filter Value:</label>
+                        <input type="text" id="filter_value" name="filter_value" required class="form-control"
+                               placeholder="Enter the filter value (e.g., BATCH_FCT)">
+                    </div>
+                    <div class="col-md">
+                        <label for="column_name" class="form-label">Column to Update:</label>
+                        <select id="column_name" name="column_name" required class="form-select">
+                            <option value="" disabled selected>Select Column</option>
+                            <option value="Flag">Flag</option>
+                            <option value="Delimiter">Delimiter</option>
+                        </select>
+                    </div>
+                    <div class="col-md">
+                        <label for="new_value" class="form-label">New Value:</label>
+                        <input type="text" id="new_value" name="new_value" required class="form-control"
+                               placeholder="Enter the new value">
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-primary w-100">
+                            Apply Update
+                        </button>
+                    </div>
+                </div>
+                <p class="form-text text-muted small">Filter the rows, choose a column, enter the new value, and click "Apply Update".</p>
+            </div>
+            <h2 class="h4 mb-3">CSV Data</h2>
+            {% if data %}
+                <div class="table-responsive border rounded">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                {% for header in headers %}
+                                    {% if header != '_row_index' %}
+                                        <th scope="col">
+                                            {{ header }}
+                                        </th>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data %}
+                                <tr>
+                                    {% for header in headers %}
+                                        {% if header != '_row_index' %}
+                                            <td>
+                                                {{ row.get(header, '') }}
+                                            </td>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if total_pages > 1 %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination">
+                            {% if current_page > 1 %}
+                                <a href="{{ url_for('bulk_update', page=current_page-1) }}">Previous</a>
+                            {% else %}
+                                <span class="disabled">Previous</span>
+                            {% endif %}
+                            {% for page_num in pages_range %}
+                                {% if page_num == current_page %}
+                                    <span class="current">{{ page_num }}</span>
+                                {% else %}
+                                    <a href="{{ url_for('bulk_update', page=page_num) }}">{{ page_num }}</a>
+                                {% endif %}
+                            {% endfor %}
+                            {% if current_page < total_pages %}
+                                <a href="{{ url_for('bulk_update', page=current_page+1) }}">Next</a>
+                            {% else %}
+                                <span class="disabled">Next</span>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-warning" role="alert">
+                    No data found in the CSV file or the file could not be read. Ensure '{{ config_filepath }}' exists and is readable.
+                </div>
+            {% endif %}
+        </form>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

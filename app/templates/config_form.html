@@ -33,6 +33,10 @@
         <div class="alert alert-danger">{{ error_message }}</div>
         {% endif %}
 
+        <div class="bulk-update-button mt-3">
+            <a href="{{ url_for('bulk_update') }}" class="btn btn-secondary">Bulk Update</a>
+        </div>
+
         <div class="table-responsive" style="max-width: 1400px; overflow-x: auto; margin: 0 auto;">
             <table class="table table-striped">
                 <thead>

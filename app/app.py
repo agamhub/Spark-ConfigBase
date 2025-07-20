@@ -1,12 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, Response, stream_with_context
+from flask import Flask, render_template, request, redirect, url_for, jsonify, Response, stream_with_context, flash
 from dqcPage import get_paginated_dqc_data, save_dqc_config_data, get_dqc_config_data, get_config_filepath
 from sparklogs import get_log_statuses
+from sparkdb import get_data
 import csv
 import os
 import math
 import time
 
 app = Flask(__name__)
+
+app.secret_key = os.urandom(24) # Replace with a strong, static key in production
+
+# CONFIG_DIR = 'E:/Repo/Spark-ConfigBase/app/config'
 CONFIG_DIR = '/app/config'
 CONFIG_FILE = 'master_job.csv'
 CONFIG_FILEPATH = os.path.join(CONFIG_DIR, CONFIG_FILE)
@@ -41,6 +46,48 @@ def get_config_data(filepath):
     except Exception as e:
         print(f"Error reading CSV: {e}")
         return []
+    
+def get_config_data_unique(filepath):
+    """Reads all config data from the CSV file."""
+    config_data = []
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'r', newline='', encoding='utf-8') as csvfile:
+            # Use DictReader for easier data manipulation
+            reader = csv.DictReader(csvfile, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # Add a unique row index to each dictionary
+            for i, row in enumerate(reader):
+                row['_row_index'] = i # Add index for identification
+                config_data.append(row)
+            return config_data
+    except FileNotFoundError:
+         print(f"Warning: File not found at {filepath}. Returning empty data.")
+         # Optionally create the file with headers if it doesn't exist
+         # headers = ['BatchName', 'JobName', 'SourceDirectory', 'FileName', 'FileType', 'Flag', 'Delimiter', 'Backdated', 'Refreshment', 'Reformat']
+         # save_config_data(filepath, [], headers) # Save empty file with headers
+         return []
+    except Exception as e:
+        print(f"Error reading config data from CSV ({filepath}): {e}")
+        return []
+    
+def save_config_data_unique(filepath, data, fieldnames):
+    """Writes config data to the CSV file."""
+    if not fieldnames:
+        print("Error: Cannot save CSV without fieldnames (headers).")
+        return
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+            # Ensure '_row_index' is not written to the file if it exists
+            writer_fieldnames = [h for h in fieldnames if h != '_row_index']
+            writer = csv.DictWriter(csvfile, fieldnames=writer_fieldnames, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL, extrasaction='ignore')
+            writer.writeheader()
+            writer.writerows(data)
+        print(f"Successfully saved data to {filepath}")
+    except Exception as e:
+        print(f"Error writing CSV ({filepath}): {e}")
 
 def save_config_data(filepath, data):
     """Writes config data to the CSV file."""
@@ -58,6 +105,81 @@ def save_config_data(filepath, data):
 @app.route('/')
 def home():
     return render_template('home.html')
+
+@app.route('/welcome')
+def index():
+    """Basic index route."""
+    return "Welcome! Go to /bulk_update to edit the CSV."
+
+@app.route('/bulk_update', methods=['GET', 'POST'])
+def bulk_update():
+    """Route to display and handle bulk updates, now with filtering."""
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    if not os.path.exists(CONFIG_FILEPATH):
+        default_headers = ['BatchName', 'JobName', 'SourceDirectory', 'FileName', 'FileType', 'Flag', 'Delimiter', 'Backdated',
+                           'Refreshment', 'Reformat']
+        print(f"CSV file not found at {CONFIG_FILEPATH}. Creating it with headers.")
+        save_config_data_unique(CONFIG_FILEPATH, [], default_headers)
+
+    headers = get_headers_from_csv(CONFIG_FILEPATH)
+    all_data = get_config_data_unique(CONFIG_FILEPATH)
+    PAGINATION_RANGE = 5
+
+    if request.method == 'POST':
+        try:
+            filter_column = request.form.get('filter_column')
+            filter_value = request.form.get('filter_value')
+            column_to_update = request.form.get('column_name')
+            new_value = request.form.get('new_value')
+
+            if not filter_column or not filter_value:
+                flash('Error: Filter column and value are required.', 'error')
+                return redirect(url_for('bulk_update'))
+
+            if not column_to_update or column_to_update not in headers:
+                flash(f'Error: Invalid or missing column name "{column_to_update}".', 'error')
+                return redirect(url_for('bulk_update'))
+
+            if new_value is None:
+                flash('Error: New value cannot be missing.', 'error')
+                return redirect(url_for('bulk_update'))
+
+            updated_count = 0
+            for row in all_data:
+                if row.get(filter_column) == filter_value:
+                    if column_to_update in row:
+                        row[column_to_update] = new_value
+                        updated_count += 1
+                    else:
+                        print(
+                            f"Warning: Column '{column_to_update}' not found in row, though it's in headers.")
+
+            if updated_count > 0:
+                save_config_data_unique(CONFIG_FILEPATH, all_data, headers)
+                flash(f'Successfully updated {updated_count} rows in column "{column_to_update}".', 'success')
+            else:
+                flash('No rows matched the filter criteria for update.', 'warning')
+
+        except Exception as e:
+            flash(f'An error occurred during update: {e}', 'error')
+            print(f"Error during POST processing: {e}")
+
+        return redirect(url_for('bulk_update'))
+
+    page = request.args.get('page', 1, type=int)
+    start_index = (page - 1) * ROWS_PER_PAGE
+    end_index = start_index + ROWS_PER_PAGE
+    data = all_data[start_index:end_index]
+
+    total_rows = len(all_data)
+    total_pages = (total_rows + ROWS_PER_PAGE - 1) // ROWS_PER_PAGE
+    start_page = max(1, page - PAGINATION_RANGE // 2)
+    end_page = min(total_pages, start_page + PAGINATION_RANGE - 1)
+
+    return render_template('bulk_update.html', headers=headers, data=data,
+                           current_page=page, total_pages=total_pages,
+                           pages_range=range(start_page, end_page + 1),
+                           config_filepath=CONFIG_FILEPATH)
 
 @app.route('/config', methods=['GET', 'POST'])
 def display_config():
@@ -611,5 +733,14 @@ def preview_log(filename):
     except Exception as e:
         return f"Error reading log file {filename}: {e}", 500
 
+@app.route('/spark', methods=['GET'])
+def spark():
+    """API endpoint to fetch data from the database."""
+    try:
+        batchdate = request.args.get('batchdate')
+        data = get_data(batchdate)
+        return render_template('dashboard.html', spark=data, batchdate=batchdate or "")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 if __name__ == '__main__':
     app.run(debug=True)
